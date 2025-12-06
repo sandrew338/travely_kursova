@@ -9,8 +9,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:travely/components/constans.dart';
-import 'package:travely/components/filter_search.dart';
 import 'package:travely/components/slide_menu.dart';
+import 'package:travely/components/filter_search.dart';
 
 class MapPage extends StatefulWidget {
   final Function(int) onItemTapped;
@@ -22,7 +22,7 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  List<Results> resultPoints  = [];
+  List<Results> resultPoints = [];
   final TextEditingController _locationController = TextEditingController();
   LatLng sourceLocation = const LatLng(0.0, 0.0);
   LatLng destinationLocation = const LatLng(0.0, 0.0);
@@ -54,7 +54,7 @@ class _MapPageState extends State<MapPage> {
             polylines: polylines,
           ),
           Positioned(
-            top: 30,
+            top: 50,
             right: 15,
             left: 15,
             height: 55,
@@ -265,8 +265,8 @@ class _MapPageState extends State<MapPage> {
                               ? Image.network(imageUrl,
                                   width: 50, height: 50, fit: BoxFit.cover)
                               : null,
-                          title: Text(
-                              resultPoints[index].name ?? 'Unnamed Place'),
+                          title:
+                              Text(resultPoints[index].name ?? 'Unnamed Place'),
                           onTap: () {
                             Navigator.pop(context);
                             _showRoute(route);
