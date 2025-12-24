@@ -3,6 +3,9 @@ import 'package:equatable/equatable.dart';
 /// User role enum
 enum UserRole { tourist, moderator }
 
+/// Gender enum
+enum Gender { male, female }
+
 /// User entity - domain layer
 class UserEntity extends Equatable {
   final String uid;
@@ -11,9 +14,15 @@ class UserEntity extends Equatable {
   final String? phoneNumber;
   final String? photoUrl;
   final UserRole role;
+  final Gender? gender;
   final List<String> preferences;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  // Profile statistics fields
+  final int tripsCount;
+  final double kmTraveled;
+  final int placesVisited;
 
   const UserEntity({
     required this.uid,
@@ -22,9 +31,13 @@ class UserEntity extends Equatable {
     this.phoneNumber,
     this.photoUrl,
     this.role = UserRole.tourist,
+    this.gender,
     this.preferences = const [],
     this.createdAt,
     this.updatedAt,
+    this.tripsCount = 0,
+    this.kmTraveled = 0.0,
+    this.placesVisited = 0,
   });
 
   /// Empty user
@@ -32,6 +45,10 @@ class UserEntity extends Equatable {
     uid: '',
     name: '',
     email: '',
+    gender: null,
+    tripsCount: 0,
+    kmTraveled: 0.0,
+    placesVisited: 0,
   );
 
   /// Check if user is empty
@@ -54,9 +71,13 @@ class UserEntity extends Equatable {
     String? phoneNumber,
     String? photoUrl,
     UserRole? role,
+    Gender? gender,
     List<String>? preferences,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? tripsCount,
+    double? kmTraveled,
+    int? placesVisited,
   }) {
     return UserEntity(
       uid: uid ?? this.uid,
@@ -65,9 +86,13 @@ class UserEntity extends Equatable {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       photoUrl: photoUrl ?? this.photoUrl,
       role: role ?? this.role,
+      gender: gender ?? this.gender,
       preferences: preferences ?? this.preferences,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      tripsCount: tripsCount ?? this.tripsCount,
+      kmTraveled: kmTraveled ?? this.kmTraveled,
+      placesVisited: placesVisited ?? this.placesVisited,
     );
   }
 
@@ -79,8 +104,12 @@ class UserEntity extends Equatable {
         phoneNumber,
         photoUrl,
         role,
+        gender,
         preferences,
         createdAt,
         updatedAt,
+        tripsCount,
+        kmTraveled,
+        placesVisited,
       ];
 }

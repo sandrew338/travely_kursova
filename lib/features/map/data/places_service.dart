@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/geo_utils.dart';
 import '../../excursion/domain/entities/excursion_entity.dart';
+import 'directions_service.dart';
 
 /// Filter result from the map filter sheet
 class FilterResult {
@@ -39,12 +41,60 @@ class PopularLocation {
   String get displayName => '$name, $country';
 }
 
+/// Result of excursion generation with validation info
+class ExcursionGenerationResult {
+  final ExcursionEntity? excursion;
+  final bool isValid;
+  final String? errorMessage;
+  final double? distanceFromUser;
+
+  const ExcursionGenerationResult({
+    this.excursion,
+    required this.isValid,
+    this.errorMessage,
+    this.distanceFromUser,
+  });
+
+  factory ExcursionGenerationResult.success(ExcursionEntity excursion) =>
+      ExcursionGenerationResult(
+        excursion: excursion,
+        isValid: true,
+      );
+
+  factory ExcursionGenerationResult.tooFar(double distanceKm) =>
+      ExcursionGenerationResult(
+        isValid: false,
+        errorMessage:
+            'Пункт призначення занадто далеко (${GeoUtils.formatDistance(distanceKm)} > 20 км) для пішої екскурсії.',
+        distanceFromUser: distanceKm,
+      );
+
+  factory ExcursionGenerationResult.noPointsInRadius(double radiusKm) =>
+      ExcursionGenerationResult(
+        isValid: false,
+        errorMessage:
+            'Не знайдено жодних місць в радіусі ${radiusKm.toStringAsFixed(1)} км.',
+      );
+
+  factory ExcursionGenerationResult.geocodingFailed() =>
+      const ExcursionGenerationResult(
+        isValid: false,
+        errorMessage: 'Не вдалося знайти вказану локацію.',
+      );
+}
+
 /// Service for interacting with Google Places API
 class PlacesService {
   final http.Client _client;
   final Random _random = Random();
+  final DirectionsService _directionsService;
 
-  PlacesService({http.Client? client}) : _client = client ?? http.Client();
+  /// Maximum distance for walking tour (20 km)
+  static const double maxWalkingDistanceKm = 20.0;
+
+  PlacesService({http.Client? client})
+      : _client = client ?? http.Client(),
+        _directionsService = DirectionsService(client: client);
 
   /// Predefined popular locations (works without API)
   static const List<PopularLocation> popularLocations = [
@@ -328,6 +378,60 @@ class PlacesService {
     }
   }
 
+  /// Get the DirectionsService instance
+  DirectionsService get directionsService => _directionsService;
+
+  /// Generate an excursion with validation
+  /// Returns ExcursionGenerationResult with validation info
+  Future<ExcursionGenerationResult> generateExcursionWithValidation({
+    required String locationQuery,
+    String? destinationQuery,
+    required double radiusKm,
+    required List<String> selectedTypes,
+    String? userId,
+    LatLng? userLocation,
+  }) async {
+    // Geocode the start location
+    final start = await geocode(locationQuery);
+    if (start == null) {
+      return ExcursionGenerationResult.geocodingFailed();
+    }
+
+    // Use destination if provided, otherwise use start location
+    final destination = destinationQuery != null && destinationQuery.isNotEmpty
+        ? (await geocode(destinationQuery)) ?? start
+        : start;
+
+    // VALIDATION 1: Distance Cap (20km max from user location)
+    if (userLocation != null) {
+      final distanceFromUser = GeoUtils.calculateDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        destination.latitude,
+        destination.longitude,
+      );
+
+      if (distanceFromUser > maxWalkingDistanceKm) {
+        return ExcursionGenerationResult.tooFar(distanceFromUser);
+      }
+    }
+
+    // Generate the excursion
+    final excursion = await generateExcursion(
+      locationQuery: locationQuery,
+      destinationQuery: destinationQuery,
+      radiusKm: radiusKm,
+      selectedTypes: selectedTypes,
+      userId: userId,
+    );
+
+    if (excursion == null) {
+      return ExcursionGenerationResult.noPointsInRadius(radiusKm);
+    }
+
+    return ExcursionGenerationResult.success(excursion);
+  }
+
   /// Generate an excursion based on filter parameters
   /// Works with or without Google API - falls back to mock data
   Future<ExcursionEntity?> generateExcursion({
@@ -377,19 +481,43 @@ class PlacesService {
       );
     }
 
+    // VALIDATION 2: Radius Enforcement - filter places within radius
+    final filteredByRadius = allPlaces.where((place) {
+      final loc = place['geometry']?['location'];
+      if (loc == null) return false;
+
+      final placeLat = (loc['lat'] as num).toDouble();
+      final placeLng = (loc['lng'] as num).toDouble();
+
+      final distanceFromCenter = GeoUtils.calculateDistanceKm(
+        center.latitude,
+        center.longitude,
+        placeLat,
+        placeLng,
+      );
+
+      // Strictly enforce radius - only include places within the radius
+      return distanceFromCenter <= radiusKm;
+    }).toList();
+
+    // Use radius-filtered places, or all places if none passed
+    final placesInRadius =
+        filteredByRadius.isNotEmpty ? filteredByRadius : allPlaces;
+
     // Filter places with good ratings
-    final filtered = allPlaces.where((p) {
+    final filtered = placesInRadius.where((p) {
       final rating = (p['rating'] ?? 0).toDouble();
       final reviews = (p['user_ratings_total'] ?? 0) as int;
       return rating >= 3.5 && reviews >= 10;
     }).toList();
 
     // If filtering removed everything, use all places
-    final placesToUse = filtered.isNotEmpty ? filtered : allPlaces;
+    final placesToUse = filtered.isNotEmpty ? filtered : placesInRadius;
 
-    // Shuffle and take up to 5 stops
+    // Shuffle and take 5–15 random stops (bounded by available places)
     placesToUse.shuffle(_random);
-    final stops = placesToUse.take(5).toList();
+    final desiredStops = 5 + _random.nextInt(11); // 5..15
+    final stops = placesToUse.take(desiredStops).toList();
 
     if (stops.isEmpty) {
       return _generateMockExcursion(
@@ -427,13 +555,27 @@ class PlacesService {
     final stopNames =
         stops.map((s) => s['name'] as String? ?? 'Unknown').take(3).join(', ');
 
+    // Build landmarks from API results
+    final landmarks = stops.asMap().entries.map((entry) {
+      final index = entry.key;
+      final place = entry.value;
+      final loc = place['geometry']?['location'];
+      return LandmarkPoint(
+        id: 'landmark_$index',
+        name: place['name'] as String? ?? 'Зупинка ${index + 1}',
+        latitude: (loc?['lat'] ?? center.latitude).toDouble(),
+        longitude: (loc?['lng'] ?? center.longitude).toDouble(),
+        description: place['vicinity'] as String?,
+      );
+    }).toList();
+
     return ExcursionEntity(
       id: '',
       name: destinationQuery != null && destinationQuery.isNotEmpty
           ? '$locationQuery → $destinationQuery'
-          : 'Explore $locationQuery',
-      description: 'Auto-generated route with ${stops.length} stops '
-          'including $stopNames and more.',
+          : 'Дослідити $locationQuery',
+      description: 'Автоматично створений маршрут з ${stops.length} зупинками '
+          'включаючи $stopNames та інші.',
       destination: destinationQuery ?? locationQuery,
       imageUrl: imageUrl,
       status: 'active',
@@ -441,10 +583,13 @@ class PlacesService {
       endDate: now.add(Duration(hours: stops.length * 2)),
       price: 0,
       rating: double.parse(avgRating.toStringAsFixed(1)),
-      duration: '${stops.length * 2} hours',
+      duration: '${stops.length * 2} год',
       userId: userId,
       createdAt: now,
       updatedAt: now,
+      landmarks: landmarks,
+      destinationLatitude: center.latitude,
+      destinationLongitude: center.longitude,
     );
   }
 
@@ -460,24 +605,32 @@ class PlacesService {
     final now = DateTime.now();
     final typesStr = selectedTypes.take(3).join(', ');
     final rating = 4.0 + _random.nextDouble() * 0.9;
-    final stops = 3 + _random.nextInt(3); // 3-5 stops
+    final stops = 5 + _random.nextInt(11); // 5-15 stops
 
     // Get image for the location
     final imageUrl = getLocationImageUrl(locationQuery) ??
         getLocationImageUrl(destinationQuery ?? '') ??
         _getDefaultImageUrl(selectedTypes);
 
-    // Generate mock stop names based on types
-    final mockStops = _generateMockStopNames(selectedTypes, locationQuery);
+    // Generate mock landmarks based on types
+    final mockLandmarks = _generateMockLandmarks(
+      selectedTypes,
+      locationQuery,
+      center,
+      stops,
+      radiusKm,
+    );
+
+    final mockStopNames = mockLandmarks.map((l) => l.name).join(', ');
 
     return ExcursionEntity(
       id: '',
       name: destinationQuery != null && destinationQuery.isNotEmpty
           ? '$locationQuery → $destinationQuery'
-          : 'Explore $locationQuery',
-      description: 'Custom route exploring $typesStr '
-          'within ${radiusKm.toStringAsFixed(1)} km radius. '
-          'Includes: $mockStops.',
+          : 'Дослiдити $locationQuery',
+      description: 'Маршрут по $typesStr '
+          'в радiусi ${radiusKm.toStringAsFixed(1)} км. '
+          'Включає: $mockStopNames.',
       destination: destinationQuery ?? locationQuery,
       imageUrl: imageUrl,
       status: 'active',
@@ -485,52 +638,100 @@ class PlacesService {
       endDate: now.add(Duration(hours: stops * 2)),
       price: 0,
       rating: double.parse(rating.toStringAsFixed(1)),
-      duration: '${stops * 2} hours',
+      duration: '${stops * 2} год',
       userId: userId,
       createdAt: now,
       updatedAt: now,
+      landmarks: mockLandmarks,
+      destinationLatitude: center.latitude,
+      destinationLongitude: center.longitude,
     );
   }
 
-  /// Generate mock stop names based on selected types
-  String _generateMockStopNames(List<String> types, String location) {
-    final stopNames = <String>[];
+  /// Generate mock landmarks for an excursion
+  List<LandmarkPoint> _generateMockLandmarks(
+    List<String> types,
+    String location,
+    LatLng center,
+    int count,
+    double radiusKm,
+  ) {
+    final landmarks = <LandmarkPoint>[];
+    final usedTypes = <String>[];
 
-    for (final type in types.take(3)) {
+    for (int i = 0; i < count; i++) {
+      // Pick a type, cycling through available types
+      final typeIndex = i % types.length;
+      final type = types[typeIndex];
+
+      // Generate slightly random offset from center (within radius)
+      final latOffset = (_random.nextDouble() - 0.5) * radiusKm / 111.0;
+      final lngOffset = (_random.nextDouble() - 0.5) * radiusKm / 111.0;
+
+      final lat = center.latitude + latOffset;
+      final lng = center.longitude + lngOffset;
+
+      String name;
+      String? description;
+
       switch (type.toLowerCase()) {
         case 'museum':
-          stopNames.add('$location National Museum');
+          name = i == 0 ? 'Нацiональний музей' : 'Музей мистецтв';
+          description = 'iсторичний музей з унiкальними експонатами';
           break;
         case 'park':
-          stopNames.add('Central Park');
+          name = i == 0 ? 'Центральний парк' : 'Мiський сад';
+          description = 'Мальовничий парк для прогулянок';
           break;
         case 'cafe':
-          stopNames.add('Historic Cafe District');
+          name = i == 0 ? 'Кав\'ярня "Затишок"' : 'Арт-кафе';
+          description = 'Затишне мiсце для вiдпочинку';
           break;
         case 'church':
-          stopNames.add('$location Cathedral');
+          name = i == 0 ? 'Собор $location' : 'Стародавня церква';
+          description = 'Архiтектурна пам\'ятка';
           break;
         case 'art gallery':
-          stopNames.add('Modern Art Gallery');
+          name = i == 0 ? 'Галерея сучасного мистецтва' : 'Арт-простiр';
+          description = 'Виставки сучасних художникiв';
           break;
         case 'zoo':
-          stopNames.add('$location Zoo');
+          name = 'Зоопарк $location';
+          description = 'Понад 500 видiв тварин';
           break;
         case 'aquarium':
-          stopNames.add('Ocean Aquarium');
+          name = 'Океанарiум';
+          description = 'Пiдводний свiт морських мешканцiв';
           break;
         case 'gym':
-          stopNames.add('Sports Complex');
+          name = 'Спортивний комплекс';
+          description = 'Сучасний спортивний центр';
           break;
         case 'store':
-          stopNames.add('Shopping District');
+          name = i == 0 ? 'Торговий центр' : 'Сувенiрна крамниця';
+          description = 'Шопiнг та розваги';
           break;
         default:
-          stopNames.add('Local Attraction');
+          name = 'Пам\'ятка $location';
+          description = 'Цiкаве мiсце для вiдвiдування';
       }
+
+      // Make sure names are unique
+      if (usedTypes.contains(name)) {
+        name = '$name ${i + 1}';
+      }
+      usedTypes.add(name);
+
+      landmarks.add(LandmarkPoint(
+        id: 'mock_landmark_$i',
+        name: name,
+        latitude: lat,
+        longitude: lng,
+        description: description,
+      ));
     }
 
-    return stopNames.join(', ');
+    return landmarks;
   }
 
   /// Map UI type names to Google Places API types

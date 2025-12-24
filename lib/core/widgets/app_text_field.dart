@@ -70,6 +70,7 @@ class _AppTextFieldState extends State<AppTextField> {
           ),
           const SizedBox(height: 8),
         ],
+        
         TextFormField(
           controller: widget.controller,
           validator: widget.validator,

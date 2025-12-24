@@ -13,7 +13,7 @@ class AppTheme {
       brightness: Brightness.light,
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Kanit',
+      // Using default Roboto font for Cyrillic support
 
       // Color Scheme
       colorScheme: const ColorScheme.light(
@@ -100,7 +100,7 @@ class AppTheme {
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceVariant,
+        fillColor: AppColors.inputBackground,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -175,4 +175,3 @@ class AppTheme {
     );
   }
 }
-

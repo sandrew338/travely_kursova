@@ -75,6 +75,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserEntity?>> {
     required String email,
     required String password,
     required String name,
+    required String gender,
     String? phoneNumber,
   }) async {
     state = const AsyncValue.loading();
@@ -82,6 +83,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserEntity?>> {
       email: email,
       password: password,
       name: name,
+      gender: gender,
       phoneNumber: phoneNumber,
     );
     return result.fold(

@@ -21,6 +21,7 @@ abstract class AuthRepository {
     required String email,
     required String password,
     required String name,
+    required String gender,
     String? phoneNumber,
   });
 
@@ -41,7 +42,13 @@ abstract class AuthRepository {
     List<String>? preferences,
   });
 
+  /// Update user statistics (trips, km, places)
+  Future<Either<Failure, void>> updateUserStats({
+    int? incrementTrips,
+    double? addKmTraveled,
+    int? incrementPlaces,
+  });
+
   /// Delete account
   Future<Either<Failure, void>> deleteAccount();
 }
-

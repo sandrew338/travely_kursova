@@ -10,9 +10,13 @@ class UserModel extends UserEntity {
     super.phoneNumber,
     super.photoUrl,
     super.role,
+    super.gender,
     super.preferences,
     super.createdAt,
     super.updatedAt,
+    super.tripsCount,
+    super.kmTraveled,
+    super.placesVisited,
   });
 
   /// Create from Firebase User
@@ -21,6 +25,7 @@ class UserModel extends UserEntity {
     String? displayName,
     String? phoneNumber,
     UserRole role = UserRole.tourist,
+    Gender? gender,
     List<String> preferences = const [],
   }) {
     return UserModel(
@@ -30,6 +35,7 @@ class UserModel extends UserEntity {
       phoneNumber: phoneNumber ?? firebaseUser.phoneNumber as String?,
       photoUrl: firebaseUser.photoURL as String?,
       role: role,
+      gender: gender,
       preferences: preferences,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -46,9 +52,14 @@ class UserModel extends UserEntity {
       phoneNumber: data['phoneNumber'] as String?,
       photoUrl: data['photoUrl'] as String?,
       role: _parseRole(data['role'] as String?),
+      gender: _parseGender(data['gender'] as String?),
       preferences: List<String>.from(data['preferences'] as List? ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      // Profile statistics from Firestore
+      tripsCount: (data['tripsCount'] as num?)?.toInt() ?? 0,
+      kmTraveled: (data['kmTraveled'] as num?)?.toDouble() ?? 0.0,
+      placesVisited: (data['placesVisited'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -61,6 +72,7 @@ class UserModel extends UserEntity {
       phoneNumber: json['phoneNumber'] as String?,
       photoUrl: json['photoUrl'] as String?,
       role: _parseRole(json['role'] as String?),
+      gender: _parseGender(json['gender'] as String?),
       preferences: List<String>.from(json['preferences'] as List? ?? []),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
@@ -68,6 +80,9 @@ class UserModel extends UserEntity {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
+      tripsCount: (json['tripsCount'] as num?)?.toInt() ?? 0,
+      kmTraveled: (json['kmTraveled'] as num?)?.toDouble() ?? 0.0,
+      placesVisited: (json['placesVisited'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -80,9 +95,13 @@ class UserModel extends UserEntity {
       'phoneNumber': phoneNumber,
       'photoUrl': photoUrl,
       'role': role.name,
+      'gender': gender?.name,
       'preferences': preferences,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'tripsCount': tripsCount,
+      'kmTraveled': kmTraveled,
+      'placesVisited': placesVisited,
     };
   }
 
@@ -94,9 +113,15 @@ class UserModel extends UserEntity {
       'phoneNumber': phoneNumber,
       'photoUrl': photoUrl,
       'role': role.name,
+      'gender': gender?.name,
       'preferences': preferences,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
+      'tripsCount': tripsCount,
+      'kmTraveled': kmTraveled,
+      'placesVisited': placesVisited,
     };
   }
 
@@ -104,6 +129,13 @@ class UserModel extends UserEntity {
   static UserRole _parseRole(String? roleStr) {
     if (roleStr == 'moderator') return UserRole.moderator;
     return UserRole.tourist;
+  }
+
+  /// Parse gender from string
+  static Gender? _parseGender(String? genderStr) {
+    if (genderStr == 'male') return Gender.male;
+    if (genderStr == 'female') return Gender.female;
+    return null;
   }
 
   /// Convert entity to model
@@ -115,9 +147,13 @@ class UserModel extends UserEntity {
       phoneNumber: entity.phoneNumber,
       photoUrl: entity.photoUrl,
       role: entity.role,
+      gender: entity.gender,
       preferences: entity.preferences,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
+      tripsCount: entity.tripsCount,
+      kmTraveled: entity.kmTraveled,
+      placesVisited: entity.placesVisited,
     );
   }
 
@@ -130,10 +166,13 @@ class UserModel extends UserEntity {
       phoneNumber: phoneNumber,
       photoUrl: photoUrl,
       role: role,
+      gender: gender,
       preferences: preferences,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      tripsCount: tripsCount,
+      kmTraveled: kmTraveled,
+      placesVisited: placesVisited,
     );
   }
 }
-

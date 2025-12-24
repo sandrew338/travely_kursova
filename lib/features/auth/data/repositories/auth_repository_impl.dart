@@ -94,6 +94,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
     required String name,
+    required String gender,
     String? phoneNumber,
   }) async {
     try {
@@ -110,6 +111,9 @@ class AuthRepositoryImpl implements AuthRepository {
       // Update display name
       await user.updateDisplayName(name);
 
+      // Parse gender string to enum
+      final genderEnum = gender == 'male' ? Gender.male : Gender.female;
+
       // Create user model
       final userModel = UserModel(
         uid: user.uid,
@@ -118,6 +122,7 @@ class AuthRepositoryImpl implements AuthRepository {
         phoneNumber: phoneNumber,
         photoUrl: user.photoURL,
         role: UserRole.tourist,
+        gender: genderEnum,
         preferences: [],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -271,6 +276,46 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(null);
     } on FirebaseAuthException catch (e) {
       return Left(FirebaseFailure.fromCode(e.code));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateUserStats({
+    int? incrementTrips,
+    double? addKmTraveled,
+    int? incrementPlaces,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        return const Left(AuthFailure(message: 'No user logged in'));
+      }
+
+      final updates = <String, dynamic>{
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Use FieldValue.increment for atomic updates
+      if (incrementTrips != null && incrementTrips > 0) {
+        updates['tripsCount'] = FieldValue.increment(incrementTrips);
+      }
+      if (addKmTraveled != null && addKmTraveled > 0) {
+        updates['kmTraveled'] = FieldValue.increment(addKmTraveled);
+      }
+      if (incrementPlaces != null && incrementPlaces > 0) {
+        updates['placesVisited'] = FieldValue.increment(incrementPlaces);
+      }
+
+      if (updates.length > 1) {
+        // More than just updatedAt
+        await _usersCollection.doc(user.uid).update(updates);
+      }
+
+      return const Right(null);
+    } on FirebaseException catch (e) {
+      return Left(FirebaseFailure(message: e.message ?? 'Firebase error'));
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }

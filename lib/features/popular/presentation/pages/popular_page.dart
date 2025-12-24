@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/geo_utils.dart';
 import '../../../excursion/domain/entities/excursion_entity.dart';
 import '../../../excursion/presentation/providers/excursion_provider.dart';
+import '../../../home/presentation/pages/main_page.dart';
+import '../../../map/presentation/pages/map_page.dart';
 import '../widgets/excursion_card.dart';
 
 /// Popular/Explore page showing excursions grid - Figma design
@@ -83,9 +88,9 @@ class _PopularHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        children: const [
           Text(
-            'Popular',
+            'Популярні',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -100,13 +105,13 @@ class _PopularHeader extends StatelessWidget {
 }
 
 /// Grid of excursion cards
-class _ExcursionsGrid extends StatelessWidget {
+class _ExcursionsGrid extends ConsumerWidget {
   final List<ExcursionEntity> excursions;
 
   const _ExcursionsGrid({required this.excursions});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GridView.builder(
       padding: const EdgeInsets.all(20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -120,14 +125,17 @@ class _ExcursionsGrid extends StatelessWidget {
         final excursion = excursions[index];
         return ExcursionCard(
           excursion: excursion,
-          onTap: () => _openExcursionDetails(context, excursion),
+          onTap: () => _openExcursionDetails(context, ref, excursion),
         );
       },
     );
   }
 
-  void _openExcursionDetails(BuildContext context, ExcursionEntity excursion) {
-    // Navigate to excursion details
+  void _openExcursionDetails(
+    BuildContext context,
+    WidgetRef ref,
+    ExcursionEntity excursion,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -137,14 +145,16 @@ class _ExcursionsGrid extends StatelessWidget {
   }
 }
 
-/// Excursion details bottom sheet
-class _ExcursionDetailsSheet extends StatelessWidget {
+/// Excursion details bottom sheet with distance validation
+class _ExcursionDetailsSheet extends ConsumerWidget {
   final ExcursionEntity excursion;
 
   const _ExcursionDetailsSheet({required this.excursion});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userLocation = ref.watch(userLocationProvider);
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
@@ -204,14 +214,15 @@ class _ExcursionDetailsSheet extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        excursion.destination,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+                      Expanded(
+                        child: Text(
+                          excursion.destination,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
-                      const Spacer(),
                       const Icon(
                         Icons.star_rounded,
                         size: 18,
@@ -228,6 +239,13 @@ class _ExcursionDetailsSheet extends StatelessWidget {
                       ),
                     ],
                   ),
+
+                  // Distance indicator
+                  if (userLocation != null &&
+                      excursion.destinationLatitude != null &&
+                      excursion.destinationLongitude != null)
+                    _buildDistanceInfo(userLocation),
+
                   const SizedBox(height: 16),
                   Text(
                     excursion.description,
@@ -238,6 +256,60 @@ class _ExcursionDetailsSheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // Landmarks preview
+                  if (excursion.landmarks.isNotEmpty) ...[
+                    const Text(
+                      'Зупинки маршруту',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...excursion.landmarks.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final landmark = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    color: AppColors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                landmark.name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                  ],
+
                   Row(
                     children: [
                       _InfoChip(
@@ -249,6 +321,13 @@ class _ExcursionDetailsSheet extends StatelessWidget {
                         icon: Icons.attach_money,
                         label: '\$${excursion.price.toInt()}',
                       ),
+                      if (excursion.landmarks.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        _InfoChip(
+                          icon: Icons.place,
+                          label: '${excursion.landmarks.length} місць',
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -261,10 +340,7 @@ class _ExcursionDetailsSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16),
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // TODO: Navigate to booking
-              },
+              onPressed: () => _handleBookNow(context, ref, userLocation),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
@@ -274,7 +350,7 @@ class _ExcursionDetailsSheet extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                'Book Now',
+                'Забронювати',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -283,6 +359,126 @@ class _ExcursionDetailsSheet extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDistanceInfo(LatLng userLocation) {
+    final distance = GeoUtils.calculateDistanceKm(
+      userLocation.latitude,
+      userLocation.longitude,
+      excursion.destinationLatitude!,
+      excursion.destinationLongitude!,
+    );
+
+    // Anti-teleport check: 20km threshold
+    final isTooFar = distance > 20;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(
+            isTooFar ? Icons.warning_rounded : Icons.directions_walk,
+            size: 16,
+            color: isTooFar ? AppColors.warning : AppColors.success,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${GeoUtils.formatDistance(distance)} від вас',
+            style: TextStyle(
+              fontSize: 12,
+              color: isTooFar ? AppColors.warning : AppColors.success,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (isTooFar) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Далеко',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _handleBookNow(
+    BuildContext context,
+    WidgetRef ref,
+    LatLng? userLocation,
+  ) {
+    // Anti-teleport distance validation (20km threshold)
+    if (userLocation != null &&
+        excursion.destinationLatitude != null &&
+        excursion.destinationLongitude != null) {
+      final distance = GeoUtils.calculateDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        excursion.destinationLatitude!,
+        excursion.destinationLongitude!,
+      );
+
+      // Block if distance is > 20km - strict anti-teleport check
+      if (distance > 20) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Цей маршрут занадто далеко (${GeoUtils.formatDistance(distance)} > 20 км) від вашого поточного місцезнаходження.',
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            action: SnackBarAction(
+              label: 'Зрозуміло',
+              textColor: AppColors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+        return; // Block the action - do not proceed
+      }
+    }
+
+    _proceedWithBooking(context, ref);
+  }
+
+  void _proceedWithBooking(BuildContext context, WidgetRef ref) {
+    // Close the bottom sheet
+    Navigator.pop(context);
+
+    // Set the booked excursion to display on map
+    ref.read(bookedExcursionProvider.notifier).state = excursion;
+
+    // Navigate to map tab
+    ref.read(currentTabProvider.notifier).state = 0;
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Екскурсію "${excursion.name}" заброньовано!'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
@@ -374,9 +570,9 @@ class _ErrorView extends StatelessWidget {
               color: AppColors.error,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Oops! Something went wrong',
-              style: const TextStyle(
+            const Text(
+              'Ой! Щось пішло не так',
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -395,7 +591,7 @@ class _ErrorView extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: const Text('Спробувати ще'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
@@ -427,7 +623,7 @@ class _EmptyView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'No excursions found',
+              'Екскурсій не знайдено',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -436,7 +632,7 @@ class _EmptyView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Check back later for exciting destinations!',
+              'Перевірте пізніше, щоб знайти цікаві місця!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,

@@ -24,7 +24,7 @@ class ProfilePage extends ConsumerWidget {
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
           error: (error, _) => Center(
-            child: Text('Error: ${error.toString()}'),
+            child: Text('Помилка: ${error.toString()}'),
           ),
         ),
       ),
@@ -42,7 +42,7 @@ class ProfilePage extends ConsumerWidget {
           const SizedBox(height: 16),
           // Title
           const Text(
-            'Profile',
+            'Профіль',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -58,7 +58,7 @@ class ProfilePage extends ConsumerWidget {
 
           // User name from Firebase
           Text(
-            user?.name ?? 'Guest User',
+            user?.name ?? 'Гість',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -70,7 +70,7 @@ class ProfilePage extends ConsumerWidget {
 
           // User email from Firebase
           Text(
-            user?.email ?? 'No email',
+            user?.email ?? 'Немає електронної пошти',
             style: const TextStyle(
               fontSize: 14,
               color: AppColors.textSecondary,
@@ -79,8 +79,8 @@ class ProfilePage extends ConsumerWidget {
 
           const SizedBox(height: 32),
 
-          // Stats row
-          _buildStatsRow(),
+          // Real stats row from Firebase
+          _buildStatsRow(user),
 
           const SizedBox(height: 32),
 
@@ -91,27 +91,27 @@ class ProfilePage extends ConsumerWidget {
               children: [
                 _MenuItem(
                   icon: Icons.calendar_today_outlined,
-                  title: 'Calendar',
+                  title: 'Календар',
                   onTap: () => context.push(RouteNames.calendar),
                 ),
                 _MenuItem(
                   icon: Icons.help_outline,
-                  title: 'Support',
+                  title: 'Підтримка',
                   onTap: () => _showSupportDialog(context),
                 ),
                 _MenuItem(
                   icon: Icons.workspace_premium_outlined,
-                  title: 'Pro-version',
+                  title: 'Pro-версія',
                   onTap: () => _showProVersionDialog(context),
                 ),
                 _MenuItem(
                   icon: Icons.admin_panel_settings_outlined,
-                  title: 'Moderation',
+                  title: 'Модерація',
                   onTap: () => _showModerationDialog(context),
                 ),
                 _MenuItem(
                   icon: Icons.logout,
-                  title: 'Sign Out',
+                  title: 'Вийти',
                   onTap: () => _signOut(context, ref),
                   isDestructive: true,
                 ),
@@ -180,15 +180,25 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(dynamic user) {
+    // Get real stats from Firebase user data, default to 0 if null
+    final tripsCount = user?.tripsCount ?? 0;
+    final kmTraveled = user?.kmTraveled ?? 0.0;
+    final placesVisited = user?.placesVisited ?? 0;
+
+    // Format km traveled for display
+    final kmDisplay = kmTraveled >= 1000
+        ? '${(kmTraveled / 1000).toStringAsFixed(1)}k'
+        : kmTraveled.toStringAsFixed(0);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _StatItem(value: '12', label: 'Trips'),
+        _StatItem(value: tripsCount.toString(), label: 'Подорожі'),
         Container(width: 1, height: 40, color: AppColors.border),
-        _StatItem(value: '8', label: 'Countries'),
+        _StatItem(value: kmDisplay, label: 'Км'),
         Container(width: 1, height: 40, color: AppColors.border),
-        _StatItem(value: '24', label: 'Places'),
+        _StatItem(value: placesVisited.toString(), label: 'Місця'),
       ],
     );
   }
@@ -206,10 +216,13 @@ class ProfilePage extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Support', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Підтримка',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text(
-          'Need help? Contact us at:\n\nsupport@travely.app\n\n'
-          'Or visit our FAQ section on the website.',
+          'Потрібна допомога? Зв\'яжіться з нами:\n\nsupport@travely.app\n\n'
+          'Або відвідайте розділ FAQ на нашому сайті.',
         ),
         actions: [
           TextButton(
@@ -227,19 +240,22 @@ class ProfilePage extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Pro-version', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Pro-версія',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text(
-          'Unlock premium features:\n\n'
-          '• Unlimited saved places\n'
-          '• Offline maps\n'
-          '• Ad-free experience\n'
-          '• Priority support\n\n'
-          'Coming soon!',
+          'Відкрийте преміум-функції:\n\n'
+          '• Необмежена кількість збережених місць\n'
+          '• Офлайн-карти\n'
+          '• Без реклами\n'
+          '• Пріоритетна підтримка\n\n'
+          'Скоро буде!',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: const Text('Закрити'),
           ),
         ],
       ),
@@ -253,7 +269,7 @@ class ProfilePage extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
-          'Go to the moderator menu?',
+          'Перейти до меню модератора?',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -265,7 +281,9 @@ class ProfilePage extends ConsumerWidget {
                   onPressed: () {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Moderation access granted')),
+                      const SnackBar(
+                        content: Text('Доступ до модерації надано'),
+                      ),
                     );
                   },
                   style: TextButton.styleFrom(
@@ -274,7 +292,7 @@ class ProfilePage extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(25),
                     ),
                   ),
-                  child: const Text('yes'),
+                  child: const Text('так'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -287,7 +305,7 @@ class ProfilePage extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(25),
                     ),
                   ),
-                  child: const Text('no'),
+                  child: const Text('ні'),
                 ),
               ),
             ],

@@ -7,7 +7,8 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // API Keys (replace with your actual keys)
-  static const String googleMapsApiKey = 'AIzaSyBiGQanFXhjlQ5QLTqjrr7OTit6l4W5ZbA';
+  static const String googleMapsApiKey =
+      'AIzaSyBiGQanFXhjlQ5QLTqjrr7OTit6l4W5ZbA';
 
   // Firebase Collections
   static const String usersCollection = 'users';
@@ -33,4 +34,3 @@ class AppConstants {
   static const double defaultLatitude = 48.8566; // Paris
   static const double defaultLongitude = 2.3522;
 }
-

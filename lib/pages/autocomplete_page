@@ -47,7 +47,7 @@ class _AutocompleteScreenState extends State<AutocompleteScreen> {
     var response = await http.get(Uri.parse(request));
     if (response.statusCode == 200) {
       setState(() {
-        _predictions = json.decode(response.body)['predictions'];
+        _predictions = json.utf8.decode(response.body)['predictions'];
       });
     } else {
       throw Exception('Failed to load predictions');
@@ -58,7 +58,7 @@ class _AutocompleteScreenState extends State<AutocompleteScreen> {
     String url = 'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$google_api_key';
     var response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
-      var details = json.decode(response.body)['result'];
+      var details = json.utf8.decode(response.body)['result'];
       final description = details['name'];
       final lat = details['geometry']['location']['lat'];
       final lng = details['geometry']['location']['lng'];

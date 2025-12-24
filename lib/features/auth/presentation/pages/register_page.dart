@@ -25,6 +25,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  String? _selectedGender;
 
   @override
   void dispose() {
@@ -38,12 +39,21 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate gender selection
+    if (_selectedGender == null) {
+      _showError('Please select your gender.');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    final success = await ref.read(authNotifierProvider.notifier).signUpWithEmailAndPassword(
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .signUpWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           name: _nameController.text.trim(),
+          gender: _selectedGender!,
         );
 
     setState(() => _isLoading = false);
@@ -58,7 +68,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
 
-    final success = await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+    final success =
+        await ref.read(authNotifierProvider.notifier).signInWithGoogle();
 
     setState(() => _isGoogleLoading = false);
 
@@ -160,6 +171,59 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   ),
                   onSubmitted: (_) => _handleRegister(),
                 ),
+                const SizedBox(height: 24),
+                // Gender selection
+                Text(
+                  'Gender',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Male'),
+                          value: 'male',
+                          groupValue: _selectedGender,
+                          onChanged: (value) {
+                            setState(() => _selectedGender = value);
+                          },
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                          ),
+                          activeColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Female'),
+                          value: 'female',
+                          groupValue: _selectedGender,
+                          onChanged: (value) {
+                            setState(() => _selectedGender = value);
+                          },
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                          ),
+                        
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 32),
                 // Register button
                 AppButton(
@@ -215,4 +279,3 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 }
-

@@ -18,11 +18,23 @@ class ExcursionModel extends ExcursionEntity {
     super.userId,
     required super.createdAt,
     required super.updatedAt,
+    super.landmarks = const [],
+    super.destinationLatitude,
+    super.destinationLongitude,
   });
 
   /// Create from Firestore document
   factory ExcursionModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
+    // Parse landmarks from Firestore
+    List<LandmarkPoint> landmarks = [];
+    if (data['landmarks'] != null) {
+      landmarks = (data['landmarks'] as List)
+          .map((l) => LandmarkPoint.fromJson(l as Map<String, dynamic>))
+          .toList();
+    }
+
     return ExcursionModel(
       id: doc.id,
       name: data['name'] ?? '',
@@ -46,6 +58,9 @@ class ExcursionModel extends ExcursionEntity {
       updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
+      landmarks: landmarks,
+      destinationLatitude: data['destinationLatitude']?.toDouble(),
+      destinationLongitude: data['destinationLongitude']?.toDouble(),
     );
   }
 
@@ -65,6 +80,9 @@ class ExcursionModel extends ExcursionEntity {
       'userId': userId,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'landmarks': landmarks.map((l) => l.toJson()).toList(),
+      'destinationLatitude': destinationLatitude,
+      'destinationLongitude': destinationLongitude,
     };
   }
 
@@ -85,6 +103,9 @@ class ExcursionModel extends ExcursionEntity {
       userId: entity.userId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
+      landmarks: entity.landmarks,
+      destinationLatitude: entity.destinationLatitude,
+      destinationLongitude: entity.destinationLongitude,
     );
   }
 
@@ -105,7 +126,9 @@ class ExcursionModel extends ExcursionEntity {
       userId: userId,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      landmarks: landmarks,
+      destinationLatitude: destinationLatitude,
+      destinationLongitude: destinationLongitude,
     );
   }
 }
-

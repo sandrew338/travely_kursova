@@ -1,5 +1,46 @@
 import 'package:equatable/equatable.dart';
 
+/// Landmark point for excursion route
+class LandmarkPoint extends Equatable {
+  final String id;
+  final String name;
+  final double latitude;
+  final double longitude;
+  final String? imageUrl;
+  final String? description;
+
+  const LandmarkPoint({
+    required this.id,
+    required this.name,
+    required this.latitude,
+    required this.longitude,
+    this.imageUrl,
+    this.description,
+  });
+
+  @override
+  List<Object?> get props =>
+      [id, name, latitude, longitude, imageUrl, description];
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'latitude': latitude,
+        'longitude': longitude,
+        'imageUrl': imageUrl,
+        'description': description,
+      };
+
+  factory LandmarkPoint.fromJson(Map<String, dynamic> json) => LandmarkPoint(
+        id: json['id'] ?? '',
+        name: json['name'] ?? '',
+        latitude: (json['latitude'] ?? 0).toDouble(),
+        longitude: (json['longitude'] ?? 0).toDouble(),
+        imageUrl: json['imageUrl'],
+        description: json['description'],
+      );
+}
+
 /// Excursion entity representing a travel destination/excursion
 class ExcursionEntity extends Equatable {
   final String id;
@@ -16,6 +57,9 @@ class ExcursionEntity extends Equatable {
   final String? userId;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<LandmarkPoint> landmarks;
+  final double? destinationLatitude;
+  final double? destinationLongitude;
 
   const ExcursionEntity({
     required this.id,
@@ -32,6 +76,9 @@ class ExcursionEntity extends Equatable {
     this.userId,
     required this.createdAt,
     required this.updatedAt,
+    this.landmarks = const [],
+    this.destinationLatitude,
+    this.destinationLongitude,
   });
 
   @override
@@ -50,6 +97,9 @@ class ExcursionEntity extends Equatable {
         userId,
         createdAt,
         updatedAt,
+        landmarks,
+        destinationLatitude,
+        destinationLongitude,
       ];
 
   ExcursionEntity copyWith({
@@ -67,6 +117,9 @@ class ExcursionEntity extends Equatable {
     String? userId,
     DateTime? createdAt,
     DateTime? updatedAt,
+    List<LandmarkPoint>? landmarks,
+    double? destinationLatitude,
+    double? destinationLongitude,
   }) {
     return ExcursionEntity(
       id: id ?? this.id,
@@ -83,7 +136,9 @@ class ExcursionEntity extends Equatable {
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      landmarks: landmarks ?? this.landmarks,
+      destinationLatitude: destinationLatitude ?? this.destinationLatitude,
+      destinationLongitude: destinationLongitude ?? this.destinationLongitude,
     );
   }
 }
-

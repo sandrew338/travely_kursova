@@ -18,7 +18,7 @@ class RoutesPage extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(24, 16, 24, 24),
               child: Text(
-                'History',
+                'iсторiя',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -35,7 +35,7 @@ class RoutesPage extends ConsumerWidget {
                   children: [
                     // Traveled routes card
                     _HistoryCard(
-                      title: 'Traveled\nroutes',
+                      title: 'Пройденi\nмаршрути',
                       imageUrl:
                           'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=800',
                       onTap: () => _openTraveledRoutes(context),
@@ -45,7 +45,7 @@ class RoutesPage extends ConsumerWidget {
 
                     // Selected routes card
                     _HistoryCard(
-                      title: 'Selected routs',
+                      title: 'Обранi маршрути',
                       imageUrl:
                           'https://images.unsplash.com/photo-1528127269322-539801943592?w=800',
                       onTap: () => _openSelectedRoutes(context),
@@ -173,7 +173,7 @@ class _TraveledRoutesPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Traveled routs',
+          'Пройденi маршрути',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -186,35 +186,35 @@ class _TraveledRoutesPage extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         children: const [
           _RouteListItem(
-            name: 'Lake joy',
+            name: 'Озеро радостi',
             imageUrl:
                 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=400',
             isFavorite: true,
           ),
           SizedBox(height: 12),
           _RouteListItem(
-            name: 'Kamianets Podilsk',
+            name: 'Кам\'янець-Подiльський',
             imageUrl:
                 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400',
             isFavorite: true,
           ),
           SizedBox(height: 12),
           _RouteListItem(
-            name: 'Beautiful houses',
+            name: 'Красивi будинки',
             imageUrl:
                 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400',
             isFavorite: true,
           ),
           SizedBox(height: 12),
           _RouteListItem(
-            name: 'Lavender Fields',
+            name: 'Лавандовi поля',
             imageUrl:
                 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400',
             isFavorite: true,
           ),
           SizedBox(height: 12),
           _RouteListItem(
-            name: 'Lavender',
+            name: 'Лаванда',
             imageUrl:
                 'https://images.unsplash.com/photo-1499002238440-d264edd596ec?w=400',
             isFavorite: true,
@@ -241,7 +241,7 @@ class _SelectedRoutesPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Selected routes',
+          'Обранi маршрути',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -257,7 +257,7 @@ class _SelectedRoutesPage extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _RouteListItem(
-              name: 'Route ${index + 1}',
+              name: 'Маршрут ${index + 1}',
               imageUrl:
                   'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
               isFavorite: false,
@@ -330,7 +330,7 @@ class _RouteListItem extends StatelessWidget {
             Container(
               width: 34,
               height: 34,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),

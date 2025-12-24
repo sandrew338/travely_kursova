@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../map/presentation/pages/map_page.dart';
@@ -11,7 +12,10 @@ import '../widgets/app_drawer.dart';
 /// Current tab index provider
 final currentTabProvider = StateProvider<int>((ref) => 0);
 
-/// Main page with bottom navigation - Figma Design (4 tabs)
+/// Global key for scaffold to access drawer from child pages
+final scaffoldKey = GlobalKey<ScaffoldState>();
+
+/// Main page with bottom navigation - Premium design with SVG icons
 class MainPage extends ConsumerWidget {
   const MainPage({super.key});
 
@@ -22,18 +26,19 @@ class MainPage extends ConsumerWidget {
     final pages = [
       const MapPage(),
       const PopularPage(),
-      const RoutesPage(), // History page
+      const RoutesPage(),
       const ProfilePage(),
     ];
 
     return Scaffold(
+      key: scaffoldKey,
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(),
       body: IndexedStack(
         index: currentTab,
         children: pages,
       ),
-      bottomNavigationBar: _BottomNavBar(
+      bottomNavigationBar: _TravelyBottomNavBar(
         currentIndex: currentTab,
         onTap: (index) => ref.read(currentTabProvider.notifier).state = index,
       ),
@@ -41,12 +46,12 @@ class MainPage extends ConsumerWidget {
   }
 }
 
-/// Custom Bottom Navigation Bar - matches Figma design exactly
-class _BottomNavBar extends StatelessWidget {
+/// Premium Bottom Navigation Bar with SVG icons - matches Figma design
+class _TravelyBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 
-  const _BottomNavBar({
+  const _TravelyBottomNavBar({
     required this.currentIndex,
     required this.onTap,
   });
@@ -55,43 +60,45 @@ class _BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.navBackground,
+        // Same color as input/text field background for consistency
+        color: AppColors.inputBackgroundLight,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: AppColors.shadow.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
       child: SafeArea(
         child: Container(
-          height: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Map icon
-              _NavIcon(
-                icon: _MapIcon(isActive: currentIndex == 0),
+              _NavItem(
+                selectedIcon: 'assets/images/selected/map_marker.svg',
+                unselectedIcon: 'assets/images/unselected/map_marker.svg',
                 isSelected: currentIndex == 0,
                 onTap: () => onTap(0),
               ),
-              // Fire/Popular icon
-              _NavIcon(
-                icon: _FireIcon(isActive: currentIndex == 1),
+              _NavItem(
+                selectedIcon: 'assets/images/selected/fire_flame_curved.svg',
+                unselectedIcon:
+                    'assets/images/unselected/fire_flame_curved.svg',
                 isSelected: currentIndex == 1,
                 onTap: () => onTap(1),
               ),
-              // History icon
-              _NavIcon(
-                icon: _HistoryIcon(isActive: currentIndex == 2),
+              _NavItem(
+                selectedIcon: 'assets/images/selected/time_past.svg',
+                unselectedIcon: 'assets/images/unselected/time_past.svg',
                 isSelected: currentIndex == 2,
                 onTap: () => onTap(2),
               ),
-              // Profile icon
-              _NavIcon(
-                icon: _ProfileIcon(isActive: currentIndex == 3),
+              _NavItem(
+                selectedIcon: 'assets/images/selected/circle_user.svg',
+                unselectedIcon: 'assets/images/unselected/circle_user.svg',
                 isSelected: currentIndex == 3,
                 onTap: () => onTap(3),
               ),
@@ -103,13 +110,16 @@ class _BottomNavBar extends StatelessWidget {
   }
 }
 
-class _NavIcon extends StatelessWidget {
-  final Widget icon;
+/// Single navigation item with fixed 24x24 SVG icon and selection state
+class _NavItem extends StatelessWidget {
+  final String selectedIcon;
+  final String unselectedIcon;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _NavIcon({
-    required this.icon,
+  const _NavItem({
+    required this.selectedIcon,
+    required this.unselectedIcon,
     required this.isSelected,
     required this.onTap,
   });
@@ -119,75 +129,43 @@ class _NavIcon extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isSelected ? AppColors.surfaceVariant : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          color: isSelected ? AppColors.white : Colors.transparent,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.shadow.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
-        child: Center(child: icon),
+        child: Center(
+          child: AnimatedScale(
+            scale: isSelected ? 1.0 : 0.9,
+            duration: const Duration(milliseconds: 200),
+            // Fixed size SvgPicture with explicit width/height
+            child: SvgPicture.asset(
+              isSelected ? selectedIcon : unselectedIcon,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              // Apply color filter for consistent rendering
+              colorFilter: ColorFilter.mode(
+                isSelected ? AppColors.primary : AppColors.textHint,
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ),
       ),
-    );
-  }
-}
-
-/// Map icon - location marker style
-class _MapIcon extends StatelessWidget {
-  final bool isActive;
-  const _MapIcon({required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.location_on_outlined,
-      size: 28,
-      color: isActive ? AppColors.textPrimary : AppColors.textHint,
-    );
-  }
-}
-
-/// Fire icon - for Popular/Trending
-class _FireIcon extends StatelessWidget {
-  final bool isActive;
-  const _FireIcon({required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.local_fire_department_outlined,
-      size: 28,
-      color: isActive ? AppColors.textPrimary : AppColors.textHint,
-    );
-  }
-}
-
-/// History icon - clock/time
-class _HistoryIcon extends StatelessWidget {
-  final bool isActive;
-  const _HistoryIcon({required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.history,
-      size: 28,
-      color: isActive ? AppColors.textPrimary : AppColors.textHint,
-    );
-  }
-}
-
-/// Profile icon - user circle
-class _ProfileIcon extends StatelessWidget {
-  final bool isActive;
-  const _ProfileIcon({required this.isActive});
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.account_circle_outlined,
-      size: 28,
-      color: isActive ? AppColors.textPrimary : AppColors.textHint,
     );
   }
 }

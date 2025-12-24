@@ -64,6 +64,10 @@ class AppColors {
   static const Color navIconActive = Color(0xFF5C6B5E);
   static const Color navIconInactive = Color(0xFF9E9E9E);
 
+  // Input & TextField Background (consistent across app)
+  static const Color inputBackground = Color(0xFFDADDD8);
+  static const Color inputBackgroundLight = Color(0xFFF5F2ED);
+
   // Gradient
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topCenter,
